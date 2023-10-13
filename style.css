@@ -1,0 +1,14 @@
+body {
+  background-color: black;
+}
+
+#canvas {
+  /* background-color: black; */
+  border: 1px solid gray;
+}
+
+.st0 {
+  fill: none;
+  stroke: #FF0000;
+  stroke-miterlimit: 10;
+}
