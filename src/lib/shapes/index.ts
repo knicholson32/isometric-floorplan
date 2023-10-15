@@ -3,7 +3,6 @@ import * as helpers from '../helpers';
 
 import { Polygon, Container, StrokeData, FillData, ArrayXY, Path } from '@svgdotjs/svg.js'
 import { Matrix } from '@svgdotjs/svg.js';
-import { Svg } from '@svgdotjs/svg.js';
 
 
 const wallHeight = 150;

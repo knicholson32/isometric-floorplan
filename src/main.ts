@@ -4,7 +4,7 @@ import srcFloor from '/floors/floor-outlined.svg?raw';
 import orbit from './lib/orbit';
 import type * as Types from './lib/types';
 import * as parser from './lib/parser';
-import { SVG, Polyline, PointArray, Polygon, Path } from '@svgdotjs/svg.js'
+import { SVG } from '@svgdotjs/svg.js'
 import { Entity, Surface } from './lib/shapes';
 
 
