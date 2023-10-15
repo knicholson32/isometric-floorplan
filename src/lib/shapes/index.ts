@@ -9,11 +9,27 @@ const wallHeight = 150;
 
 export class Entity {
 
+  _basisTranslate: Types.Point = { x: 0, y: 0 };
+  _basisScale: number = 1;
+  _runningTranslate: Types.Point = { x: 0, y: 0 };
+
   constructor() {
 
   }
 
   matrixTransform(_matrix: Types.Matrix2D) {}
+
+  basisTranslate(_point: Types.Point) {
+    this._basisTranslate = _point;
+  }
+
+  basisScale(_scale: number) {
+    this._basisScale = _scale;
+  }
+
+  runningTranslate(point: Types.Point) {
+    this._runningTranslate = point;
+  }
 
   draw(_fastRender: boolean, _height: number) {}
 
@@ -29,19 +45,22 @@ export class PathWrapper extends Entity {
   constructor(path: Path, container: Container) {
     super();
     this.path = path;
+    this.path.center(0, 0);
 
     this.path.fill({
-      color: '#fff'
+      color: '#000'
     });
     this.path.stroke({
       color: '#fff',
       width: 2
     })
     container.add(this.path);
+
   }
 
   matrixTransform(matrix: Types.Matrix2D) {
-    this.path.transform(new Matrix(matrix[0][0], matrix[1][0], matrix[0][1], matrix[1][1], 0, 0));
+    this.path.transform(new Matrix(matrix[0][0], matrix[1][0], matrix[0][1], matrix[1][1], this._runningTranslate.x, this._runningTranslate.y));
+    this.path.scale(this._basisScale * 0.8);
   }
 
 }
@@ -56,7 +75,6 @@ export class Surface extends Entity {
     point2: Types.Point
   };
 
-  runningTranslate: Types.Point = {x: 0, y: 0};
 
   shape: Polygon;
   container: Container;
@@ -68,7 +86,7 @@ export class Surface extends Entity {
   renderOrderCache: { [key: number]: boolean | undefined } = {};
 
   stroke: StrokeData = {
-    color: '#ffffff',
+    color: '#444',
     width: 1
   };
 
@@ -106,23 +124,18 @@ export class Surface extends Entity {
   }
 
 
-  coreTranslate(xTranslate: number, yTranslate: number) {
-    this.initial.point1.x += xTranslate;
-    this.initial.point2.x += xTranslate;
-    this.initial.point1.y += yTranslate;
-    this.initial.point2.y += yTranslate;
+  basisTranslate(point: Types.Point) {
+    this.initial.point1.x += point.x;
+    this.initial.point2.x += point.x;
+    this.initial.point1.y += point.y;
+    this.initial.point2.y += point.y;
   }
 
-  coreScale(scale: number) {
+  basisScale(scale: number) {
     this.initial.point1.x *= scale;
     this.initial.point1.y *= scale;
     this.initial.point2.x *= scale;
     this.initial.point2.y *= scale;
-  }
-
-  setRunningTranslate(xTranslate: number, yTranslate: number) {
-    this.runningTranslate.x = xTranslate;
-    this.runningTranslate.y = yTranslate;
   }
 
   eq = (x: number): number => x;
@@ -189,10 +202,10 @@ export class Surface extends Entity {
       this.shape.fill(this.fill);
     }
 
-    const translated1X = this.point1.x + this.runningTranslate.x;
-    const translated2X = this.point2.x + this.runningTranslate.x;
-    const translated1Y = this.point1.y + this.runningTranslate.y;
-    const translated2Y = this.point2.y + this.runningTranslate.y;
+    const translated1X = this.point1.x + this._runningTranslate.x;
+    const translated2X = this.point2.x + this._runningTranslate.x;
+    const translated1Y = this.point1.y + this._runningTranslate.y;
+    const translated2Y = this.point2.y + this._runningTranslate.y;
 
     const points: ArrayXY[] = [
       [translated1X, translated1Y],
@@ -272,17 +285,4 @@ export class Surface extends Entity {
 
   }
 
-}
-
-
-
-export class Region {
-
-  path;
-  container: Container;
-
-  constructor(container: Container, path: Path) {
-    this.path = path;
-    this.container = container;
-  }
 }

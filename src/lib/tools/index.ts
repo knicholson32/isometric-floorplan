@@ -1,6 +1,8 @@
 import { Entity, Surface } from "../shapes";
 import * as helpers from '../helpers';
 import type * as Types from '../types';
+import { Rect } from "@svgdotjs/svg.js";
+import { PointArray } from "@svgdotjs/svg.js";
 
 
 export const transform = (surfaces: Entity[], baseRotation: number, isometricRotation: number) => {
@@ -11,44 +13,6 @@ export const transform = (surfaces: Entity[], baseRotation: number, isometricRot
     surface.reset();
     surface.matrixTransform(helpers.multiply(isometricMatrix, rotationMatrix, 2) as Types.Matrix2D);
   }
-}
-
-export const getMinMaxCoords = (surfaces: Surface[]) => {
-  let minX = Infinity, minY = Infinity;
-  let maxX = -Infinity, maxY = -Infinity;
-  for (const surface of surfaces) {
-    if (surface.point1.x < minX) minX = surface.point1.x;
-    if (surface.point2.x < minX) minX = surface.point2.x;
-    if (surface.point1.x > maxX) maxX = surface.point1.x;
-    if (surface.point2.x > maxX) maxX = surface.point2.x;
-    if (surface.point1.y < minY) minY = surface.point1.y;
-    if (surface.point1.y < minY) minY = surface.point1.y;
-    if (surface.point2.y > maxY) maxY = surface.point2.y;
-    if (surface.point2.y > maxY) maxY = surface.point2.y;
-  }
-  return { minX, minY, maxX, maxY };
-}
-
-export const centerScale = (surfaces: Surface[], size: Types.Point) => {
-  const center = {
-    x: size.x / 2,
-    y: size.y / 2
-  };
-  // Move the floorplan to the 0,0 position
-  let mm = getMinMaxCoords(surfaces);
-  {
-    const xTranslate = -mm.minX - (mm.maxX - mm.minX) / 2;
-    const yTranslate = -mm.minY - (mm.maxY - mm.minY) / 2;
-    for (const surface of surfaces) surface.coreTranslate(xTranslate, yTranslate);
-    // TODO: Calculate this better
-    for (const surface of surfaces) surface.coreScale(0.75);
-  }
-
-  // mm = getMinMaxCoords(surfaces);
-  // stage.polygon([mm.minX,mm.minY, mm.minX,mm.maxY, mm.maxX,mm.maxY, mm.maxX,mm.minY, mm.minX,mm.minY]).fill({opacity: 0}).stroke({color: '#f00', width: 3});
-  // The transformations will all be done around 0,0. After translations, the running translate points will move the 
-  // shape to be centered around the specified location
-  for (const surface of surfaces) surface.setRunningTranslate(center.x, center.y);
 }
 
 export const sortSurfaces = (surfaces: Surface[], fast=true) => {
@@ -152,4 +116,18 @@ export const sortSurfaces = (surfaces: Surface[], fast=true) => {
   }
 
   return toDraw;
+}
+
+export const rectToPoints = (rect: Rect) => {
+  const x = new Number(rect.x()).valueOf();
+  const y = new Number(rect.y()).valueOf();
+  const w = new Number(rect.width()).valueOf();
+  const h = new Number(rect.height()).valueOf();
+  return new PointArray([
+    x, y,
+    x + w, y,
+    x + w, y + h,
+    x, y + h,
+    x, y,
+  ]);
 }

@@ -4,6 +4,7 @@ import srcFloor from '/floors/floor-outlined.svg?raw';
 import orbit from './lib/orbit';
 import type * as Types from './lib/types';
 import * as parser from './lib/parser';
+import { Layer } from './lib/layers';
 import { SVG } from '@svgdotjs/svg.js'
 import { Entity, Surface } from './lib/shapes';
 
@@ -15,8 +16,9 @@ const stage = svg;
 
 svg.addTo('body');
 
+parser.parse(stage, svgSize, srcFloor);
 
-const entities: Entity[] = parser.parse(stage, svgSize, srcFloor);
+const entities: Entity[] = Layer.getAllEntities();
 const surfaces = entities.filter((e) => e instanceof Surface) as Surface[];
 
 function frame(fastRender: boolean, rotation: number, tilt: number, height: number) {
