@@ -57,7 +57,8 @@ export class Walls extends Layer {
 
   add(points: PointArray) {
     // Make sure the last point goes back to the first point
-    if (points[0][0] !== points[points.length-1][0]) points.push(points[0]);
+    if (points[0][0] !== points[points.length - 1][0] || points[0][1] !== points[points.length - 1][1]) points.push(points[0]);
+    console.log(points);
     let trailingPoint = helpers.arrayXYToPoint(points[0]);
     for (let i = 1; i < points.length; i++) {
       const point = helpers.arrayXYToPoint(points[i]);
