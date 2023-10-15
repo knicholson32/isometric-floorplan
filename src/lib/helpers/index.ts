@@ -69,3 +69,20 @@ export const do1DLineSegmentsOverlap = (segment1: [number, number], segment2: [n
 
   return [overlapStart, overlapEnd];
 }
+
+
+// This function multiplies 
+// mat1[][] and mat2[][], and 
+// stores the result in res[][] 
+export const multiply = (mat1: number[][], mat2: number[][], N=2) => {
+  const res: number[][] = new Array(N).fill(0).map(() => new Array(N).fill(0));
+  for (let i = 0; i < N; i++) {
+    res.push([]);
+    for (let j = 0; j < N; j++) {
+      res[i][j] = 0;
+      for (let k = 0; k < N; k++)
+        res[i][j] += mat1[i][k] * mat2[k][j];
+    }
+  }
+  return res;
+}

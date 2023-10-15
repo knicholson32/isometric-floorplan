@@ -1,4 +1,12 @@
+import SVGHotReload from './src/plugins/svgHotReload';
+
 /** @type {import('vite').UserConfig} */
 export default {
-  base: '/isometric-floorplan/'
+  base: '/isometric-floorplan/',
+  build: {
+    sourcemap: true
+  },
+  plugins: [
+    SVGHotReload()
+  ]
 }

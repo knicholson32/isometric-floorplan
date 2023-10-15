@@ -1,16 +1,15 @@
-import { Surface } from "../shapes";
+import { Entity, Surface } from "../shapes";
 import * as helpers from '../helpers';
 import type * as Types from '../types';
 
 
-export const transform = (surfaces: Surface[], baseRotation: number, isometricRotation: number) => {
+export const transform = (surfaces: Entity[], baseRotation: number, isometricRotation: number) => {
   const rotationMatrix = helpers.getRotationMatrix(baseRotation);
   const isometricMatrix = helpers.getIsometricMatrix(isometricRotation);
 
   for (const surface of surfaces) {
     surface.reset();
-    surface.matrixTransform(rotationMatrix);
-    surface.matrixTransform(isometricMatrix);
+    surface.matrixTransform(helpers.multiply(isometricMatrix, rotationMatrix, 2) as Types.Matrix2D);
   }
 }
 
@@ -51,7 +50,6 @@ export const centerScale = (surfaces: Surface[], size: Types.Point) => {
   // shape to be centered around the specified location
   for (const surface of surfaces) surface.setRunningTranslate(center.x, center.y);
 }
-
 
 export const sortSurfaces = (surfaces: Surface[], fast=true) => {
   // const debug = false;

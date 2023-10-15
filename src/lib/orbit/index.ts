@@ -19,7 +19,6 @@ export default class Orbit {
       const normalizedX = event.offsetX / box.width;  // 0-1
       const normalizedY = event.offsetY / box.height; // 0-1
 
-
       if (event.buttons === 1) {
         // Click and drag
         this.hasRendered = false;

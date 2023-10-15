@@ -1,12 +1,54 @@
 import type * as Types from '../types';
 import * as helpers from '../helpers';
 
-import { Polygon, Container, StrokeData, FillData, ArrayXY } from '@svgdotjs/svg.js'
+import { Polygon, Container, StrokeData, FillData, ArrayXY, Path } from '@svgdotjs/svg.js'
+import { Matrix } from '@svgdotjs/svg.js';
+import { Svg } from '@svgdotjs/svg.js';
 
 
 const wallHeight = 150;
 
-export class Surface {
+export class Entity {
+
+  constructor() {
+
+  }
+
+  matrixTransform(_matrix: Types.Matrix2D) {}
+
+  draw(_fastRender: boolean, _height: number) {}
+
+  reset() {}
+
+}
+
+
+export class PathWrapper extends Entity {
+
+  path;
+
+  constructor(path: Path, container: Container) {
+    super();
+    this.path = path;
+
+    this.path.fill({
+      color: '#fff'
+    });
+    this.path.stroke({
+      color: '#fff',
+      width: 2
+    })
+    container.add(this.path);
+  }
+
+  matrixTransform(matrix: Types.Matrix2D) {
+    this.path.transform(new Matrix(matrix[0][0], matrix[1][0], matrix[0][1], matrix[1][1], 0, 0));
+  }
+
+}
+
+
+export class Surface extends Entity {
   point1: Types.Point;
   point2: Types.Point;
 
@@ -37,6 +79,7 @@ export class Surface {
   };
 
   constructor(container: Container, initialPoint1: Types.Point, initialPoint2: Types.Point) {
+    super();
     this.container = container;
     this.shape = container.polygon();
     this.index = Surface.surfaceCounter;
@@ -171,6 +214,9 @@ export class Surface {
     //   return true;
     // }
 
+    // TODO: There may be a speedup by analyzing the range of y values:
+    //       if all y values are larger on one line, it is above?
+
     // If either slope is NaN (vertical line) we won't be able to tell which is above the other
     if (b.index in this.renderOrderCache) {
       // console.log('cache hit');
@@ -227,4 +273,17 @@ export class Surface {
 
   }
 
+}
+
+
+
+export class Region {
+
+  path;
+  container: Container;
+
+  constructor(container: Container, path: Path) {
+    this.path = path;
+    this.container = container;
+  }
 }
