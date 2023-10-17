@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@svgdotjs/svg.js": "^3.2.0",
-    "@svgdotjs/svg.topoly.js": "^1.0.3"
+    "@svgdotjs/svg.topoly.js": "^1.0.3",
+    "martinez-polygon-clipping": "^0.7.3"
   }
 }

@@ -1,8 +1,9 @@
 import { Entity, Surface } from "../shapes";
 import * as helpers from '../helpers';
-import type * as Types from '../types';
-import { Rect } from "@svgdotjs/svg.js";
-import { PointArray } from "@svgdotjs/svg.js";
+import * as Types from '../types';
+import { Rect } from '@svgdotjs/svg.js';
+import { PointArray } from '@svgdotjs/svg.js';
+import * as martinez from 'martinez-polygon-clipping'
 
 
 export const transform = (surfaces: Entity[], baseRotation: number, isometricRotation: number) => {
@@ -130,4 +131,51 @@ export const rectToPoints = (rect: Rect) => {
     x, y + h,
     x, y,
   ]);
+}
+
+
+const _pointPolyToGeometryPoly = (points: Types.Point[]): martinez.Polygon => {
+  const poly: martinez.Polygon = [];
+  poly[0] = [];
+  for (const point of points) {
+    const position: martinez.Position = [point.x, point.y];
+    poly[0].push(position);
+  }
+  return poly;
+}
+
+
+/**
+ * Union all polygons together in a group
+ * @param polygons the polygons to union together
+ * @returns the resulting polygons
+ */
+export const unionAll = (polygons: Types.Point[][]): Types.Point[][] => {
+  // TODO: Consider trying another lib: https://github.com/w8r/GreinerHormann
+  let runningPoly: martinez.MultiPolygon = [_pointPolyToGeometryPoly(polygons[0])];
+  for (let i = 1; i < polygons.length; i++) {
+    const result = martinez.union(runningPoly, _pointPolyToGeometryPoly(polygons[i]));
+    if (typeof result[0][0][0] === 'number') {
+      // The result is a Polygon
+      runningPoly = [result as martinez.Polygon];
+    } else {
+      // The result is a MultiPolygon
+      runningPoly = result as martinez.MultiPolygon;
+    }
+  }
+
+  const unionPolygons: Types.Point[][] = [];
+
+  for (const poly of runningPoly) {
+    const exportPoly: Types.Point[] = [];
+    for (const p of poly[0]) {
+      exportPoly.push({
+        x: p[0],
+        y: p[1]
+      });
+    }
+    unionPolygons.push(exportPoly);
+  }
+
+  return unionPolygons;
 }

@@ -9,3 +9,9 @@ export type Point = {
   x: number,
   y: number
 }
+
+export type BoundingBox = {
+
+}
+
+export type LineSegment = { p1: Point, p2: Point }

@@ -43,6 +43,7 @@ export default class Orbit {
       }
     }
 
-    this.orbitCallback(false, (0.625) * -360 + 135, (0.75) * 45, 1 - (0.75))
+    this.orbitCallback(true, (0.625) * -360 + 135, (0.75) * 45, 1 - (0.75));
+    this.orbitCallback(false, (0.625) * -360 + 135, (0.75) * 45, 1 - (0.75));
   }
 }

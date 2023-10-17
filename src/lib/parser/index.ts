@@ -25,8 +25,7 @@ const parseFloorplan = (src: G, interior: layer.Interior, outline: layer.Outline
         console.warn(`Invalid Shape Type: '${element.type}'\nElement named '${id}' could not be parsed as an outline because it was not a Rect, Path, Polygon or Polyline. `);
         continue;
       }
-      walls.add(points);
-      outline.set(points);
+      outline.set(points, walls);
     } else if (id === 'interior') {
       if (element instanceof Path) {
         interior.set(element);
@@ -57,8 +56,8 @@ const parseRooms = (src: G, rooms: layer.Rooms, walls: layer.Walls) => {
         console.warn(`Invalid Shape Type: '${element.type}'\nElement named '${id}' could not be parsed as a room because it was not a Rect, Polygon or Polyline. `);
         continue;
       }
-      rooms.add(points);
-      walls.add(points);
+      rooms.add(points, id);
+      walls.add(points, id);
     }
   }
   return entities;
@@ -75,8 +74,8 @@ export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
 
 
   const walls = new layer.Walls(stage);
-  const rooms = new layer.Rooms(stage);
   const interior = new layer.Interior(stage);
+  const rooms = new layer.Rooms(stage);
   const outline = new layer.Outline(stage);
 
   for (const element of elements) {
@@ -100,13 +99,17 @@ export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
     }
   }
 
+  const basisTranslation = outline.getBasisTranslation();
 
   const center = {
     x: svgSize.x / 2,
     y: svgSize.y / 2
   }
 
-  walls.centerScale(center, 0.75);
-  rooms.centerScale(center, 0.75);
-  interior.centerScale(center, 0.75);
+  const scale = 0.5;
+
+  walls.centerScale(center, basisTranslation, scale);
+  rooms.centerScale(center, basisTranslation, scale);
+  interior.centerScale(center, basisTranslation, scale);
+  outline.centerScale(center, basisTranslation, scale);
 }

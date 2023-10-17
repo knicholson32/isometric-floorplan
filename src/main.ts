@@ -24,9 +24,8 @@ const surfaces = entities.filter((e) => e instanceof Surface) as Surface[];
 function frame(fastRender: boolean, rotation: number, tilt: number, height: number) {
   for (const entity of entities) entity.reset();
   tools.transform(entities, rotation, tilt);
-  if (fastRender) {
-    for (const entity of entities) entity.draw(fastRender, height);
-  } else {
+  for (const entity of entities) entity.draw(fastRender, height);
+  if (!fastRender) {
     const surfacesSorted = tools.sortSurfaces(surfaces, false);
     for (const surface of surfacesSorted) surface.draw(fastRender, height);
   }

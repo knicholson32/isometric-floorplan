@@ -1,8 +1,11 @@
 import type * as Types from '../types';
 import * as helpers from '../helpers';
 
-import { Polygon, Container, StrokeData, FillData, ArrayXY, Path } from '@svgdotjs/svg.js'
+import { Polygon, Container, ArrayXY, Path } from '@svgdotjs/svg.js'
 import { Matrix } from '@svgdotjs/svg.js';
+import { PointArray } from '@svgdotjs/svg.js';
+import { Box } from '@svgdotjs/svg.js';
+import * as tools from '../tools';
 
 
 const wallHeight = 150;
@@ -13,8 +16,10 @@ export class Entity {
   _basisScale: number = 1;
   _runningTranslate: Types.Point = { x: 0, y: 0 };
 
-  constructor() {
+  container: Container;
 
+  constructor(container: Container) {
+    this.container = container;
   }
 
   matrixTransform(_matrix: Types.Matrix2D) {}
@@ -37,34 +42,98 @@ export class Entity {
 
 }
 
-
 export class PathWrapper extends Entity {
 
   path;
 
-  constructor(path: Path, container: Container) {
-    super();
+  constructor(path: Path, container: Container, cssClasses: string[]) {
+    super(container);
     this.path = path;
     this.path.center(0, 0);
 
-    this.path.fill({
-      color: '#000'
-    });
-    this.path.stroke({
-      color: '#fff',
-      width: 2
-    })
+    cssClasses.push('path');
+    for (const c of cssClasses) this.path.addClass(c);
+
     container.add(this.path);
 
   }
 
   matrixTransform(matrix: Types.Matrix2D) {
     this.path.transform(new Matrix(matrix[0][0], matrix[1][0], matrix[0][1], matrix[1][1], this._runningTranslate.x, this._runningTranslate.y));
-    this.path.scale(this._basisScale * 0.8);
+    this.path.scale(this._basisScale);
+  }
+
+  draw(fastRender: boolean, _height: number) {
+    if (fastRender) {
+      if (this.path.classes().indexOf('wireframe') === -1) this.path.addClass('wireframe');
+    } else this.path.removeClass('wireframe');
   }
 
 }
 
+export class PolyWrapper extends Entity {
+  poly: Polygon;
+
+  points: Types.Point[];
+  initialPoints: Types.Point[];
+
+  constructor(points: PointArray, container: Container, id: string, cssClasses: string[]) {
+    super(container);
+
+    this.points = helpers.pointArrayToPoints(points);
+    this.initialPoints = helpers.pointArrayToPoints(points);
+
+    this.poly = container.polygon(points)
+
+    this.poly.id(id);
+    cssClasses.push('poly');
+    for (const c of cssClasses) this.poly.addClass(c);
+  }
+
+  calculateInitialBoundingBox(): Box {
+    this.poly.clear();
+    this.poly.plot(helpers.pointsToArrayXY(this.points));
+    const ret = this.poly.bbox();
+    this.poly.clear();
+    return ret;
+  }
+
+  basisTranslate(point: Types.Point) {
+    for (const p of this.initialPoints) {
+      p.x += point.x;
+      p.y += point.y;
+    }
+  }
+
+  basisScale(scale: number) {
+    for (const p of this.initialPoints) {
+      p.x *= scale;
+      p.y *= scale;
+    }
+  }
+
+
+  reset() {
+    this.points = [];
+    for (const p of this.initialPoints) this.points.push({ x: p.x, y: p.y });
+  }
+
+  matrixTransform(matrix: Types.Matrix2D) {
+    for (const p of this.points) {
+      const x = p.x;
+      const y = p.y
+      p.x = x * matrix[0][0] + y * matrix[0][1];
+      p.y = x * matrix[1][0] + y * matrix[1][1];
+    }
+  }
+
+  draw(fastRender: boolean, _height: number) {
+    this.poly.clear()
+    if (fastRender) this.poly.addClass('wireframe');
+    else this.poly.removeClass('wireframe');
+    this.poly.plot(helpers.pointsToArrayXY(this.points, this._runningTranslate));
+  }
+}
 
 export class Surface extends Entity {
   point1: Types.Point;
@@ -85,22 +154,15 @@ export class Surface extends Entity {
   index;
   renderOrderCache: { [key: number]: boolean | undefined } = {};
 
-  stroke: StrokeData = {
-    color: '#444',
-    width: 1
-  };
-
-  fill: FillData = {
-    color: '#000000',
-    opacity: 1
-  };
-
-  constructor(container: Container, initialPoint1: Types.Point, initialPoint2: Types.Point) {
-    super();
+  constructor(container: Container, initialPoint1: Types.Point, initialPoint2: Types.Point, id: string, cssClasses: string[]) {
+    super(container);
     this.container = container;
     this.shape = container.polygon();
-    this.index = Surface.surfaceCounter;
-    this.shape.attr('id', 'surface ' + Surface.surfaceCounter++);
+    this.index = Surface.surfaceCounter++;
+    this.shape.id(id);
+
+    cssClasses.push('surface');
+    for (const c of cssClasses) this.shape.addClass(c);
 
     if (Math.abs(initialPoint1.x - initialPoint2.x) < 0.1 && Math.abs(initialPoint1.y - initialPoint2.y) < 0.1) {
       console.log('CLOSE POINT!', initialPoint1, initialPoint2);
@@ -169,7 +231,6 @@ export class Surface extends Entity {
       y: this.initial.point2.y
     }
     // this.updateEq();
-    // this.strokeColor = '#000000';
     this.renderOrderCache = {};
   }
 
@@ -189,18 +250,8 @@ export class Surface extends Entity {
     this.renderOrderCache = {};
     this.shape.clear()
 
-    if (fastRender) {
-      this.shape.stroke({
-        color: '#333',
-        width: 0.5
-      });
-      this.shape.fill({
-        opacity: 0
-      });
-    } else {
-      this.shape.stroke(this.stroke);
-      this.shape.fill(this.fill);
-    }
+    if (fastRender) this.shape.addClass('wireframe');
+    else this.shape.removeClass('wireframe');
 
     const translated1X = this.point1.x + this._runningTranslate.x;
     const translated2X = this.point2.x + this._runningTranslate.x;
@@ -284,5 +335,96 @@ export class Surface extends Entity {
     }
 
   }
+
+}
+
+
+
+export class Extrusion extends PolyWrapper {
+
+
+  // Extrusion steps
+  // Take a polygon and copy it lower, to make the two levels
+  // Draw vertical lines between every pair of points
+  // Move to the highest point on the stage to start
+  //  Travel left to right. If the traversal intercepts a vertical line, follow it up until point pair or intersection.
+  //  If a direction reversal is encountered, travel down until the point pair or another intersection of a line
+
+  // Instead of changing left-right direction, prefer to travel up or down a vertical
+  // Take every intersection line as long as it isn't on a segment point itself (only between points)
+
+  // extrude: Polygon;
+
+
+  constructor(points: PointArray, container: Container, id: string, cssClasses: string[]) {
+    super(points, container, id, cssClasses);
+  }
+
+  _highestPointIndex() {
+    let highestPoint = this.points[0].y;
+    let highestPointIndex = 0;
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      if (p.y < highestPoint) {
+        highestPoint = p.y;
+        highestPointIndex = i;
+      }
+    }
+    return highestPointIndex;
+  }
+
+  _rotateList(startIndex: number, list: any[]) {
+    const newList = [];
+    for (let i = 0; i < list.length; i++) {
+      let idx = startIndex + i;
+      if (idx >= list.length) {
+        startIndex = -i;
+        idx = startIndex + i;
+      }
+      newList.push(list[idx]);
+    }
+    return newList;
+  }
+
+  // segmentShapesDebugO: Polygon[] = []
+  draw(_fastRender: boolean, height: number) {
+    this.poly.clear();
+    // for (const s of this.segmentShapesDebugO) s.remove();
+    // this.segmentShapesDebugO = [];
+
+    const lowerPoly: Types.Point[] = [];
+    const upperPoly: Types.Point[] = [];
+    for (const point of this.points) {
+      lowerPoly.push({ x: point.x, y: point.y + height * wallHeight });
+      upperPoly.push({ x: point.x, y: point.y });
+    }
+
+    const walls: Types.Point[][] = [];
+    let trailingPoint = this.points[0];
+    for (let i = 1; i < this.points.length; i++) {
+      const point = this.points[i];
+      // this.container.line([[point.x + this._runningTranslate.x, point.y + this._runningTranslate.y], [trailingPoint.x + this._runningTranslate.x, trailingPoint.y + this._runningTranslate.y]]).stroke({color: '#0f0', width: 3});
+      const wall: Types.Point[] = [
+        helpers.roundPoint({ x: point.x-0.01, y: point.y-0.01 }),
+        helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y }),
+        helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y + height * wallHeight+0.01 }),
+        helpers.roundPoint({ x: point.x-0.01, y: point.y + height * wallHeight+0.01 }),
+        helpers.roundPoint({ x: point.x-0.01, y: point.y-0.01 }),
+      ];
+      // this.segmentShapesDebugO.push(this.container.polygon(helpers.pointsToArrayXY(wall, this._runningTranslate)).stroke({ color: '#0f0', width: 3 }).attr('fill', 'none'));
+      walls.push(wall);
+      trailingPoint = point;
+    }
+
+  
+    let poly = tools.unionAll([...walls]);
+
+    poly = tools.unionAll([...poly, this.points]);
+    poly = tools.unionAll([...poly, lowerPoly]);
+
+    this.poly.opacity(1);
+    this.poly.plot(helpers.pointsToArrayXY(poly[0], this._runningTranslate));
+  }
+
 
 }

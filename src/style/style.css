@@ -104,3 +104,43 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+
+.surface, .poly, .path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke: none;
+}
+
+.interior {
+  fill: #000;
+  stroke: none;
+}
+
+.room {
+  stroke: #fff;
+  stroke-width: 0.5;
+  fill: none;
+}
+
+.wall, .outline-wall {
+  stroke: #fff;
+  fill: #000;
+  stroke-width: 0.5;
+  /* fill: none; */
+}
+
+.outline-wall {
+  stroke-width: 1;
+}
+
+.wall.wireframe {
+  fill: none;
+  stroke: #333;
+}
+
+.outline {
+  stroke: #ffffff;
+  stroke-width: 3px;
+}
