@@ -7,17 +7,30 @@ const POINT_EQUAL_THRESHOLD = 0.001;
 
 /**
  * Get a matrix that can isometrically distort the scene
- * @param angleInDegrees the angle of the isometric distortion
+ * @param angleInDegrees the angle of the isometric distortion, from 0-90 degrees
  * @returns the distortion matrix
  */
 export const getIsometricMatrix = (angleInDegrees: number): Types.Matrix2D => {
-  const angleInRadians = (angleInDegrees * Math.PI) / 180;
+  if (angleInDegrees < 0) angleInDegrees = 0;
+  if (angleInDegrees > 90) angleInDegrees = 90;
+  const angleInRadians = ((angleInDegrees / 2) * Math.PI) / 180;
   const cosA = Math.cos(angleInRadians);
   const sinA = Math.sin(angleInRadians);
-
   return [
     [cosA, -cosA],
     [sinA, sinA]
+  ];
+}
+
+/**
+ * Get a matrix that can scale the scene
+ * @param scale the scale factor
+ * @returns the scale matrix
+ */
+export const getScaleMatrix = (scale: number): Types.Matrix2D => {
+  return [
+    [scale, 0],
+    [0, scale]
   ];
 }
 
@@ -67,7 +80,7 @@ export const pointsToArrayXY = (points: Types.Point[], translate?: Types.Point) 
  */
 export const getRotationMatrix = (angleInDegrees: number): Types.Matrix2D => {
   // Convert the angle to radians
-  const angleInRadians = (angleInDegrees * Math.PI) / 180;
+  const angleInRadians = ((angleInDegrees - 45) * Math.PI) / 180;
 
   // Define the initial rotation matrix
   return [
@@ -117,6 +130,29 @@ export const multiply = (mat1: number[][], mat2: number[][], N=2) => {
   return res;
 }
 
+/**
+ * Calculate the distance between two points
+ * @param p1 the first point
+ * @param p2 the second point
+ * @returns the distance between the points
+ */
+export const distanceBetween = (p1: Types.Point, p2: Types.Point): number => {
+  return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+}
+
+/**
+ * Interpolate between two points
+ * @param a the first point
+ * @param b the second point
+ * @param frac the ratio (0-1) between the first and second point
+ * @returns the new point
+ */
+export const interpolate = (a: Types.Point, b: Types.Point, frac: number): Types.Point => {
+  // https://stackoverflow.com/questions/17190981/how-can-i-interpolate-between-2-points-when-drawing-with-canvas
+  var nx = a.x + (b.x - a.x) * frac;
+  var ny = a.y + (b.y - a.y) * frac;
+  return { x: nx, y: ny };
+}
 
 /**
  * Check for segment intersection

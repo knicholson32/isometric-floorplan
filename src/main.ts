@@ -6,7 +6,7 @@ import type * as Types from './lib/types';
 import * as parser from './lib/parser';
 import { Layer } from './lib/layers';
 import { SVG } from '@svgdotjs/svg.js'
-import { Entity, Surface } from './lib/shapes';
+import { Entity, Surface, ShapeVariables } from './lib/shapes';
 
 
 
@@ -21,9 +21,10 @@ parser.parse(stage, svgSize, srcFloor);
 const entities: Entity[] = Layer.getAllEntities();
 const surfaces = entities.filter((e) => e instanceof Surface) as Surface[];
 
-function frame(fastRender: boolean, rotation: number, tilt: number, height: number) {
+function frame(fastRender: boolean, rotation: number, tilt: number, height: number, scale: number) {
+  ShapeVariables.setScale(scale);
   for (const entity of entities) entity.reset();
-  tools.transform(entities, rotation, tilt);
+  tools.transform(entities, rotation, tilt, scale);
   for (const entity of entities) entity.draw(fastRender, height);
   if (!fastRender) {
     const surfacesSorted = tools.sortSurfaces(surfaces, false);

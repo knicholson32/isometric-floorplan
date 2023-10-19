@@ -8,7 +8,20 @@ import { Box } from '@svgdotjs/svg.js';
 import * as tools from '../tools';
 
 
-const wallHeight = 150;
+export namespace ShapeVariables {
+
+  const initialWallHeight = 150;
+
+  export let wallHeight = 150;
+  export let doorHeight = 10;
+
+  export const setScale = (scale: number) => {
+    wallHeight = initialWallHeight * scale;
+  }
+
+
+
+}
 
 export class Entity {
 
@@ -145,8 +158,12 @@ export class Surface extends Entity {
   };
 
 
+  id: string;
+  classes: string[] = [];
   shape: Polygon;
   container: Container;
+
+  removed = false;
   
   static surfaceCounter = 0;
   static surfaces: Surface[] = [];
@@ -157,12 +174,13 @@ export class Surface extends Entity {
   constructor(container: Container, initialPoint1: Types.Point, initialPoint2: Types.Point, id: string, cssClasses: string[]) {
     super(container);
     this.container = container;
-    this.shape = container.polygon();
+    this.id = id;
     this.index = Surface.surfaceCounter++;
-    this.shape.id(id);
-
     cssClasses.push('surface');
-    for (const c of cssClasses) this.shape.addClass(c);
+    for (const c of cssClasses) this.classes.push(c);
+    this.shape = this.container.polygon();
+    this.shape.remove();
+    this.createShape();
 
     if (Math.abs(initialPoint1.x - initialPoint2.x) < 0.1 && Math.abs(initialPoint1.y - initialPoint2.y) < 0.1) {
       console.log('CLOSE POINT!', initialPoint1, initialPoint2);
@@ -183,6 +201,24 @@ export class Surface extends Entity {
     };
     this.updateEq();
     Surface.surfaces.push(this);
+  }
+
+  createShape() {
+    this.shape = this.container.polygon();
+    this.shape.id(this.id);
+    for (const c of this.classes) this.shape.addClass(c);
+    this.removed = false;
+  }
+
+  getAsSegment(): Types.LineSegment {
+    return { p1: this.initial.point1, p2: this.initial.point2 }
+  }
+
+  isDoor = false;
+  doorRatio: {d1: number, d2: number}[] = [];
+  door(d1: number, d2: number) {
+    this.isDoor = true;
+    this.doorRatio.push({d1, d2});
   }
 
 
@@ -247,6 +283,15 @@ export class Surface extends Entity {
   }
 
   draw(fastRender: boolean, height: number) {
+
+    if (height <= 0.001) {
+      this.shape.remove();
+      this.removed = true;
+      return;
+    }
+
+    if (this.removed) this.createShape();
+
     this.renderOrderCache = {};
     this.shape.clear()
 
@@ -258,15 +303,50 @@ export class Surface extends Entity {
     const translated1Y = this.point1.y + this._runningTranslate.y;
     const translated2Y = this.point2.y + this._runningTranslate.y;
 
-    const points: ArrayXY[] = [
-      [translated1X, translated1Y],
-      [translated1X, translated1Y + height * wallHeight],
-      [translated2X, translated2Y + height * wallHeight],
-      [translated2X, translated2Y],
-      [translated1X, translated1Y]
-    ]
-    if (!fastRender) this.shape.front();
-    this.shape.plot(points);    
+    if (!this.isDoor) {
+      const points: ArrayXY[] = [
+        [translated1X, translated1Y],
+        [translated1X, translated1Y + height * ShapeVariables.wallHeight],
+        [translated2X, translated2Y + height * ShapeVariables.wallHeight],
+        [translated2X, translated2Y],
+        [translated1X, translated1Y]
+      ]
+      if (!fastRender) this.shape.front();
+      this.shape.plot(points);
+    } else {
+
+      const d1 = helpers.interpolate({ x: translated1X, y: translated1Y }, { x: translated2X, y: translated2Y }, this.doorRatio[0].d1);
+      const d2 = helpers.interpolate({ x: translated1X, y: translated1Y }, { x: translated2X, y: translated2Y }, this.doorRatio[0].d2);
+      if (Math.abs(d1.x - translated1X) < Math.abs(d2.x - translated1X)) {
+        const points: ArrayXY[] = [
+          [translated1X, translated1Y],
+          [translated2X, translated2Y],
+          [translated2X, translated2Y + height * ShapeVariables.wallHeight],
+          [d2.x, d2.y + height * ShapeVariables.wallHeight],
+          [d2.x, d2.y + height * ShapeVariables.doorHeight],
+          [d1.x, d1.y + height * ShapeVariables.doorHeight],
+          [d1.x, d1.y + height * ShapeVariables.wallHeight],
+          [translated1X, translated1Y + height * ShapeVariables.wallHeight],
+          [translated1X, translated1Y],
+        ]
+        if (!fastRender) this.shape.front();
+        this.shape.plot(points);
+      } else {
+        const points: ArrayXY[] = [
+          [translated1X, translated1Y],
+          [translated2X, translated2Y],
+          [translated2X, translated2Y + height * ShapeVariables.wallHeight],
+          [d1.x, d1.y + height * ShapeVariables.wallHeight],
+          [d1.x, d1.y + height * ShapeVariables.doorHeight],
+          [d2.x, d2.y + height * ShapeVariables.doorHeight],
+          [d2.x, d2.y + height * ShapeVariables.wallHeight],
+          [translated1X, translated1Y + height * ShapeVariables.wallHeight],
+          [translated1X, translated1Y],
+        ]
+        if (!fastRender) this.shape.front();
+        this.shape.plot(points);
+      }
+    }
   }
 
 
@@ -387,15 +467,17 @@ export class Extrusion extends PolyWrapper {
   }
 
   // segmentShapesDebugO: Polygon[] = []
-  draw(_fastRender: boolean, height: number) {
+  draw(fastRender: boolean, height: number) {
     this.poly.clear();
     // for (const s of this.segmentShapesDebugO) s.remove();
     // this.segmentShapesDebugO = [];
 
+    // if (fastRender) return;
+
     const lowerPoly: Types.Point[] = [];
     const upperPoly: Types.Point[] = [];
     for (const point of this.points) {
-      lowerPoly.push({ x: point.x, y: point.y + height * wallHeight });
+      lowerPoly.push({ x: point.x, y: point.y + height * ShapeVariables.wallHeight });
       upperPoly.push({ x: point.x, y: point.y });
     }
 
@@ -407,8 +489,8 @@ export class Extrusion extends PolyWrapper {
       const wall: Types.Point[] = [
         helpers.roundPoint({ x: point.x-0.01, y: point.y-0.01 }),
         helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y }),
-        helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y + height * wallHeight+0.01 }),
-        helpers.roundPoint({ x: point.x-0.01, y: point.y + height * wallHeight+0.01 }),
+        helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y + height * ShapeVariables.wallHeight+0.01 }),
+        helpers.roundPoint({ x: point.x-0.01, y: point.y + height * ShapeVariables.wallHeight+0.01 }),
         helpers.roundPoint({ x: point.x-0.01, y: point.y-0.01 }),
       ];
       // this.segmentShapesDebugO.push(this.container.polygon(helpers.pointsToArrayXY(wall, this._runningTranslate)).stroke({ color: '#0f0', width: 3 }).attr('fill', 'none'));
@@ -416,14 +498,17 @@ export class Extrusion extends PolyWrapper {
       trailingPoint = point;
     }
 
-  
-    let poly = tools.unionAll([...walls]);
-
-    poly = tools.unionAll([...poly, this.points]);
-    poly = tools.unionAll([...poly, lowerPoly]);
-
     this.poly.opacity(1);
-    this.poly.plot(helpers.pointsToArrayXY(poly[0], this._runningTranslate));
+
+    if (height > 0.001) {
+      let poly = tools.unionAll([...walls]);
+      poly = tools.unionAll([...poly, this.points]);
+      poly = tools.unionAll([...poly, lowerPoly]);
+      this.poly.plot(helpers.pointsToArrayXY(poly[0], this._runningTranslate));
+    } else {
+      let poly = tools.unionAll([this.points]);
+      this.poly.plot(helpers.pointsToArrayXY(poly[0], this._runningTranslate));
+    }
   }
 
 

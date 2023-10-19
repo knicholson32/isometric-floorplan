@@ -3,7 +3,7 @@ import { Entity } from '../shapes';
 import type * as Types from '../types';
 import * as tools from '../tools';
 import * as layer from '../layers';
-// import * as helpers from '../helpers';
+import * as helpers from '../helpers';
 import '@svgdotjs/svg.topoly.js';
 import { Rect } from '@svgdotjs/svg.js';
 
@@ -63,6 +63,42 @@ const parseRooms = (src: G, rooms: layer.Rooms, walls: layer.Walls) => {
   return entities;
 }
 
+export const parseDoors = (src: G, walls: layer.Walls) => {
+  // Loop through all the doors in the feature group
+  for (const door of src.children()) {
+    // Get the ID for the door (mostly for debugging)
+    const id = door.id().replace(/_x5F/gm, '');
+    // Initialize a PointArray to hold the points of the door area
+    let pointsArr: PointArray;
+    // Convert the shape to a PointArray depending on what kind of shape it is
+    if (door instanceof Polygon || door instanceof Polyline) {
+      pointsArr = door.array();
+    } else if (door instanceof Rect) {
+      pointsArr = tools.rectToPoints(door);
+    } else {
+      console.warn(`Invalid Shape Type: '${door.type}'\nElement named '${id}' could not be parsed as a door because it was not a Rect, Polygon or Polyline. `);
+      
+      continue;
+    }
+    // Convert the PointArray to Point[]
+    const points = helpers.pointArrayToPoints(pointsArr);
+
+    // Convert the points into individual segments instead
+    const segments: Types.LineSegment[] = [];
+    let trailingPoint = points[0];
+    for (let i = 1; i < points.length; i++) {
+      const point = points[i];
+      segments.push({ p1: trailingPoint, p2: point })
+      trailingPoint = point;
+    }
+
+    // We now have an array of segments. We need to check each wall:
+    //  -> If the wall is intersected by exactly two of our segments, that wall will be made into a door
+    //     based on where the lines intersect. Ask the wall layer to make this check
+    walls.assignDoors(segments);
+  }
+}
+
 export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
 
   // Import floor plan SVG
@@ -78,8 +114,9 @@ export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
   const rooms = new layer.Rooms(stage);
   const outline = new layer.Outline(stage);
 
-  for (const element of elements) {
+  let features: G | undefined = undefined;
 
+  for (const element of elements) {
     if (element instanceof G) {
       const id = element.id();
       switch (id) {
@@ -90,11 +127,26 @@ export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
         case 'rooms':
           parseRooms(element, rooms, walls);
           break;
-        case 'doors':
-        case 'door':
+        case 'features':
+          features = element;
           break
         default:
           console.warn(`Unknown group name '${id}'`);
+      }
+    }
+  }
+
+  if (features !== undefined) {
+    for (const feature of features.children()) {
+      if (feature instanceof G) {
+        const id = feature.id();
+        switch (id) {
+          case 'doors':
+            parseDoors(feature, walls);
+            break;
+          default:
+            console.warn(`Unknown group name '${id}'`);
+        }
       }
     }
   }

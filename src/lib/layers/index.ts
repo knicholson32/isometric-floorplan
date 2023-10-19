@@ -68,6 +68,34 @@ export class Walls extends Layer {
     }
   }
 
+  assignDoors(segmentsToCheck: Types.LineSegment[]) {
+    // We need to go through every wall and check if any are intersected by exactly two of these segments
+    for (const wall of this.walls) {
+      const wallSegment = wall.getAsSegment();
+
+      const intersectPoints: Types.Point[] = [];
+      // Loop through each segment and check intersections
+      for (const segment of segmentsToCheck) {
+        const intersection = helpers.lineSegmentsIntersect(wallSegment, segment);
+        if (intersection !== null) intersectPoints.push(intersection);
+      }
+
+      // If there were two intersections, this is a wall that needs a door
+      if (intersectPoints.length === 2) {
+        // We need to save the two ratios for the door: Two values that represent how far along
+        // the surface the door should start and end, as a value from 0-1;
+        const fullScale = helpers.distanceBetween(wallSegment.p1, wallSegment.p2);
+        const d1 = helpers.distanceBetween(wallSegment.p1, intersectPoints[0]) / fullScale;
+        const d2 = helpers.distanceBetween(wallSegment.p1, intersectPoints[1]) / fullScale;
+
+        console.log('Add Door', wall, segmentsToCheck);
+        console.log(intersectPoints);
+
+        wall.door(d1, d2);
+      }
+    }
+  }
+
   getBoundingBox() {
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;

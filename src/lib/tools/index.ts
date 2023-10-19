@@ -6,13 +6,17 @@ import { PointArray } from '@svgdotjs/svg.js';
 import * as martinez from 'martinez-polygon-clipping'
 
 
-export const transform = (surfaces: Entity[], baseRotation: number, isometricRotation: number) => {
+export const transform = (surfaces: Entity[], baseRotation: number, isometricRotation: number, scale: number) => {
+  const scaleMatrix = helpers.getScaleMatrix(scale);
   const rotationMatrix = helpers.getRotationMatrix(baseRotation);
   const isometricMatrix = helpers.getIsometricMatrix(isometricRotation);
 
+  const scaleRotation = helpers.multiply(rotationMatrix, scaleMatrix, 2) as Types.Matrix2D
+  const isometricTransform = helpers.multiply(isometricMatrix, scaleRotation, 2) as Types.Matrix2D
+
   for (const surface of surfaces) {
     surface.reset();
-    surface.matrixTransform(helpers.multiply(isometricMatrix, rotationMatrix, 2) as Types.Matrix2D);
+    surface.matrixTransform(isometricTransform);
   }
 }
 
