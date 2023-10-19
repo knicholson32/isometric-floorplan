@@ -466,11 +466,8 @@ export class Extrusion extends PolyWrapper {
     return newList;
   }
 
-  // segmentShapesDebugO: Polygon[] = []
   draw(_fastRender: boolean, height: number) {
     this.poly.clear();
-    // for (const s of this.segmentShapesDebugO) s.remove();
-    // this.segmentShapesDebugO = [];
 
     const lowerPoly: Types.Point[] = [];
     const upperPoly: Types.Point[] = [];
@@ -483,7 +480,6 @@ export class Extrusion extends PolyWrapper {
     let trailingPoint = this.points[0];
     for (let i = 1; i < this.points.length; i++) {
       const point = this.points[i];
-      // this.container.line([[point.x + this._runningTranslate.x, point.y + this._runningTranslate.y], [trailingPoint.x + this._runningTranslate.x, trailingPoint.y + this._runningTranslate.y]]).stroke({color: '#0f0', width: 3});
       const wall: Types.Point[] = [
         helpers.roundPoint({ x: point.x-0.01, y: point.y-0.01 }),
         helpers.roundPoint({ x: trailingPoint.x+0.01, y: trailingPoint.y }),
