@@ -467,12 +467,10 @@ export class Extrusion extends PolyWrapper {
   }
 
   // segmentShapesDebugO: Polygon[] = []
-  draw(fastRender: boolean, height: number) {
+  draw(_fastRender: boolean, height: number) {
     this.poly.clear();
     // for (const s of this.segmentShapesDebugO) s.remove();
     // this.segmentShapesDebugO = [];
-
-    // if (fastRender) return;
 
     const lowerPoly: Types.Point[] = [];
     const upperPoly: Types.Point[] = [];
