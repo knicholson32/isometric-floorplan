@@ -3,7 +3,7 @@ import * as helpers from '$lib/helpers';
 
 import type { Polygon, Container, ArrayXY, Path } from '@svgdotjs/svg.js';
 import { Matrix } from '@svgdotjs/svg.js';
-import type { Feature } from '$lib/features';
+import { Door, type Feature } from '$lib/features';
 import type { PointArray } from '@svgdotjs/svg.js';
 import type { Box } from '@svgdotjs/svg.js';
 import * as tools from '$lib/tools';
@@ -175,7 +175,7 @@ export class Surface extends Entity {
 	index;
 	renderOrderCache: { [key: number]: boolean | undefined } = {};
 
-	feature: Feature | undefined = undefined;
+	features: Feature[] = [];
 
 	constructor(
 		container: Container,
@@ -254,7 +254,19 @@ export class Surface extends Entity {
 	}
 
 	attachFeature(feature: Feature) {
-		this.feature = feature;
+		// Check if this feature to add is a door
+		if (feature instanceof Door) {
+			// Go through the features we have so far. We need to tell the first door about all the doors
+			for (const f of this.features) {
+				if (f instanceof Door) {
+					// Tell the first door about this door
+					f.addRelatedDoor(feature);
+					break;
+				}
+			}
+		}
+		// Add it to the feature list
+		this.features.push(feature);
 	}
 
 	// createShape() {
@@ -354,7 +366,7 @@ export class Surface extends Entity {
 
 		let polygons: ArrayXY[][];
 
-		if (this.feature === undefined) {
+		if (this.features.length === 0) {
 			// If we have no feature, this is a simple wall
 
 			// if (height <= 0.001) {
@@ -375,7 +387,7 @@ export class Surface extends Entity {
 			polygons = [points];
 		} else {
 			// This is a feature. Let the feature come up with all the polygons
-			polygons = this.feature.render(translated1, translated2, heightNormalized);
+			polygons = this.features[0].render(translated1, translated2, heightNormalized);
 		}
 
 		if (fastRender) {

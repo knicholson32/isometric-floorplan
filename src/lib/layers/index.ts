@@ -99,6 +99,7 @@ export class Walls extends Layer {
 		}
 
 		if (doors.length > 1) {
+			console.log(doors.length);
 			for (let i = 0; i < doors.length; i += 2) {
 				const d1 = doors[i];
 				const d2 = doors[i + 1];
