@@ -295,6 +295,8 @@ export class Surface extends Entity {
 	eq = (x: number): number => x;
 	slope = NaN;
 
+	lowY = 0;
+	highY = 0;
 	updateEq() {
 		// Protect against an odd slope
 		if (Math.abs(this.point1.x - this.point2.x) < 0.1) {
@@ -311,6 +313,8 @@ export class Surface extends Entity {
 		const b = this.point1.y - m * this.point1.x;
 
 		this.eq = (x) => m * x + b;
+		this.lowY = this.point1.y < this.point2.y ? this.point1.y : this.point2.y;
+		this.highY = this.point1.y > this.point2.y ? this.point1.y : this.point2.y;
 	}
 
 	reset() {
@@ -339,17 +343,6 @@ export class Surface extends Entity {
 	}
 
 	draw(fastRender: boolean, heightNormalized: number) {
-		this.renderOrderCache = {};
-		for (const s of this.shapes) s.clear();
-
-		if (fastRender) {
-			for (const s of this.shapes) s.addClass('wireframe');
-		} else {
-			for (const s of this.shapes) s.removeClass('wireframe');
-			if (this.shapes.length > 1) this.container.front();
-			else this.shapes[0].front();
-		}
-
 		const translated1: Types.Point = {
 			x: this.point1.x + this._runningTranslate.x,
 			y: this.point1.y + this._runningTranslate.y
@@ -385,19 +378,24 @@ export class Surface extends Entity {
 			polygons = this.feature.render(translated1, translated2, heightNormalized);
 		}
 
+		if (fastRender) {
+			for (const s of this.shapes) s.addClass('wireframe');
+		} else {
+			for (const s of this.shapes) s.clear();
+			for (const s of this.shapes) s.removeClass('wireframe');
+			if (this.shapes.length > 1) this.container.front();
+			else this.shapes[0].front();
+		}
+
 		// Draw all the polygons
 		for (let i = 0; i < this.shapes.length && i < polygons.length; i++)
 			this.shapes[i].plot(polygons[i]);
 	}
 
-	isRenderedBefore(b: Surface, debug = false): boolean | undefined {
-		// if (fast) {
-		//   if (this.getLowestPoint() > b.getLowestPoint()) return false;
-		//   return true;
-		// }
-
-		// TODO: There may be a speedup by analyzing the range of y values:
-		//       if all y values are larger on one line, it is above?
+	isRenderedBefore(b: Surface, _debug = false): boolean | undefined {
+		// If one segment is entirely above or below the other one, this is easy
+		if (this.highY < b.lowY) return true;
+		if (b.highY < this.lowY) return false;
 
 		// If either slope is NaN (vertical line) we won't be able to tell which is above the other
 		if (b.index in this.renderOrderCache) {
@@ -409,9 +407,6 @@ export class Surface extends Entity {
 			if (r === undefined) return undefined;
 			return !r;
 		}
-		if (debug) console.log('this', this);
-		if (debug) console.log('b', b);
-		if (debug) console.log('slopes', this.slope, b.slope);
 		if (isNaN(this.slope) || isNaN(b.slope)) {
 			this.renderOrderCache[b.index] = undefined;
 			return undefined;
@@ -421,13 +416,11 @@ export class Surface extends Entity {
 			[this.point1.x, this.point2.x],
 			[b.point1.x, b.point2.x]
 		);
-		if (debug) console.log('overlap', overlap);
 
 		if (overlap) {
 			// They overlap. It may be a segment, or just one point.
 			if (Math.abs(overlap[0] - overlap[1]) < 0.001) {
 				// Single point overlap. We still don't know anything
-				if (debug) console.log('very small overlap');
 				this.renderOrderCache[b.index] = undefined;
 				return undefined;
 			} else {
@@ -437,8 +430,6 @@ export class Surface extends Entity {
 
 				const thisY = this.eq(midpoint);
 				const bY = b.eq(midpoint);
-
-				if (debug) console.log('y values', thisY, bY);
 
 				if (thisY > bY) {
 					// This object is lower in the scene, and is therefore "above", or rendered after the other object
@@ -488,8 +479,13 @@ export class Extrusion extends PolyWrapper {
 		return highestPointIndex;
 	}
 
-	draw(_fastRender: boolean, height: number) {
+	draw(fastRender: boolean, height: number) {
 		this.poly.clear();
+
+		if (fastRender) {
+			this.poly.opacity(0);
+			return;
+		}
 
 		const lowerPoly: Types.Point[] = [];
 		const upperPoly: Types.Point[] = [];

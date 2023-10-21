@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+.noselect {
+	-webkit-touch-callout: none;
+	/* iOS Safari */
+	-webkit-user-select: none;
+	/* Safari */
+	-khtml-user-select: none;
+	/* Konqueror HTML */
+	-moz-user-select: none;
+	/* Old versions of Firefox */
+	-ms-user-select: none;
+	/* Internet Explorer/Edge */
+	user-select: none;
+	/* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+}
+
+.textTest {
+	fill: white;
+}
+
 .surface,
 .poly,
 .path {
@@ -37,11 +56,12 @@
 
 .wall.wireframe,
 .door.wireframe {
-	fill: none;
-	stroke: #333;
+	fill: none !important;
+	stroke: #333 !important;
 }
 
 .outline {
 	stroke: #ffffff;
 	stroke-width: 3px;
+	outline-style: none;
 }

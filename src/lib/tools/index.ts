@@ -25,11 +25,11 @@ export const transform = (
 };
 
 export const sortSurfaces = (surfaces: Surface[], fast = true) => {
-	const toSort = surfaces.concat([]);
-	const toDraw = [];
 	if (fast) {
 		return surfaces;
 	} else {
+		const toSort = surfaces.concat([]);
+		const toDraw = [];
 		// We need to loop through each z-slot and find the best shape to go there
 		// We will describe "best" as no other shapes are below it ~and~ as few undefined orders as possible
 
@@ -84,9 +84,8 @@ export const sortSurfaces = (surfaces: Surface[], fast = true) => {
 				toSort.splice(idx, 1);
 			}
 		}
+		return toDraw;
 	}
-
-	return toDraw;
 };
 
 /**

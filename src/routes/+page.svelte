@@ -45,7 +45,7 @@
 			}
 		}
 
-		new orbit(svg.node, frame);
+		new orbit(svg, frame);
 	});
 </script>
 

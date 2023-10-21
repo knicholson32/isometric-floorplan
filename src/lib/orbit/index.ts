@@ -1,3 +1,6 @@
+import type { Point } from '$lib/types';
+import type { Svg } from '@svgdotjs/svg.js';
+
 type OrbitCallback = (
 	fastRender: boolean,
 	rotation: number,
@@ -20,11 +23,26 @@ export default class Orbit {
 	orbitCallback: OrbitCallback;
 
 	currentAngles: Angles = { rotation: -45, tilt: 45, scale: 0.5 };
+	lastAngles: Angles = { rotation: -45, tilt: 45, scale: 0.5 };
 
 	wheelTimeoutID: ReturnType<typeof setTimeout> | undefined = undefined;
 
-	constructor(target: SVGSVGElement, orbitCallback: OrbitCallback) {
+	svgSize: Point;
+	svg: Svg;
+
+	text;
+	// logo;
+
+	constructor(svg: Svg, orbitCallback: OrbitCallback) {
 		this.orbitCallback = orbitCallback;
+
+		this.svg = svg;
+		const target = this.svg.node;
+
+		this.svgSize = {
+			x: new Number(svg.width()).valueOf(),
+			y: new Number(svg.height()).valueOf()
+		};
 
 		// Reading the value, which was store as "theValue"
 		const orbitDataRaw = localStorage ? localStorage.getItem('orbit') : null;
@@ -46,7 +64,7 @@ export default class Orbit {
 				clearTimeout(this.wheelTimeoutID);
 				this.wheelTimeoutID = undefined;
 			}
-			const delta = Math.sign(event.deltaY);
+			const delta = event.deltaY / 2;
 			this.move(0, 0, delta, true);
 			this.wheelTimeoutID = setTimeout(() => this.move(0, 0, 0, false), 500);
 		});
@@ -57,7 +75,26 @@ export default class Orbit {
 
 		document.onmouseup = (event: MouseEvent) =>
 			this.move(event.movementX, event.movementY, 0, false);
+
+		this.text = this.svg.plain('');
+
+		this.text.addClass('textTest');
+		this.text.addClass('noselect');
+		this.text.translate(5, this.svgSize.y - 8);
+		this.text.font({
+			family: 'Menlo',
+			size: 10
+		});
+		this.text.opacity(0.3);
 		this.move(0, 0, 0, false);
+	}
+
+	drawAngles() {
+		this.text.text(
+			`${this.currentAngles.rotation.toFixed(1)}° ${this.currentAngles.tilt.toFixed(
+				1
+			)} x${this.currentAngles.scale.toFixed(2)}`
+		);
 	}
 
 	saveOrbitData() {
@@ -92,6 +129,9 @@ export default class Orbit {
 			heightNormalized,
 			this.currentAngles.scale
 		);
-		if (!fastRender) this.saveOrbitData();
+		if (!fastRender) {
+			this.saveOrbitData();
+		}
+		this.drawAngles();
 	}
 }
