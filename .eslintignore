@@ -3,6 +3,7 @@ node_modules
 /build
 /.svelte-kit
 /package
+/backups
 .env
 .env.*
 !.env.example

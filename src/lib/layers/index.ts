@@ -6,6 +6,7 @@ import * as helpers from '$lib/helpers';
 import type { PointArray } from '@svgdotjs/svg.js';
 import type { Path } from '@svgdotjs/svg.js';
 import { Box } from '@svgdotjs/svg.js';
+import { Door } from '$lib/features';
 
 export class Layer {
 	layer: G;
@@ -48,6 +49,7 @@ export class Walls extends Layer {
 	}
 
 	addWall(point1: Types.Point, point2: Types.Point, roomID: string) {
+		// this.walls.push(new Wall(this.layer, roomID, point1, point2, ['wall', roomID]));
 		this.walls.push(new Surface(this.layer, point1, point2, roomID, ['wall', roomID]));
 	}
 
@@ -58,7 +60,6 @@ export class Walls extends Layer {
 			points[0][1] !== points[points.length - 1][1]
 		)
 			points.push(points[0]);
-		console.log(points);
 		let trailingPoint = helpers.arrayXYToPoint(points[0]);
 		for (let i = 1; i < points.length; i++) {
 			const point = helpers.arrayXYToPoint(points[i]);
@@ -69,6 +70,7 @@ export class Walls extends Layer {
 
 	assignDoors(segmentsToCheck: Types.LineSegment[]) {
 		// We need to go through every wall and check if any are intersected by exactly two of these segments
+		const doors: Door[] = [];
 		for (const wall of this.walls) {
 			const wallSegment = wall.getAsSegment();
 
@@ -80,19 +82,34 @@ export class Walls extends Layer {
 			}
 
 			// If there were two intersections, this is a wall that needs a door
-			if (intersectPoints.length === 2) {
-				// We need to save the two ratios for the door: Two values that represent how far along
-				// the surface the door should start and end, as a value from 0-1;
+			if (intersectPoints.length >= 2) {
 				const fullScale = helpers.distanceBetween(wallSegment.p1, wallSegment.p2);
-				const d1 = helpers.distanceBetween(wallSegment.p1, intersectPoints[0]) / fullScale;
-				const d2 = helpers.distanceBetween(wallSegment.p1, intersectPoints[1]) / fullScale;
+				const descriptions: Types.DoorDescription[] = [];
+				for (let i = 0; i < intersectPoints.length; i += 2) {
+					// We need to save the two ratios for the door: Two values that represent how far along
+					// the surface the door should start and end, as a value from 0-1;
+					const r1 = helpers.distanceBetween(wallSegment.p1, intersectPoints[0]) / fullScale;
+					const r2 = helpers.distanceBetween(wallSegment.p1, intersectPoints[1]) / fullScale;
+					descriptions.push({ r1, r2 });
+				}
 
-				console.log('Add Door', wall, segmentsToCheck);
-				console.log(intersectPoints);
-
-				wall.door(d1, d2);
+				const d = new Door(wall, descriptions);
+				doors.push(d);
 			}
 		}
+
+		if (doors.length > 1) {
+			for (let i = 0; i < doors.length; i += 2) {
+				const d1 = doors[i];
+				const d2 = doors[i + 1];
+				d1.link(d2);
+				d2.link(d1);
+			}
+		}
+
+		// for (const remove of toRemove) remove.remove();
+		// this.walls = this.walls.filter((e) => !toRemove.includes(e));
+		// this.walls = this.walls.concat(doors);
 	}
 
 	getBoundingBox() {
@@ -134,7 +151,9 @@ export class Walls extends Layer {
 	}
 
 	getEntities(): Entity[] {
-		return this.walls;
+		const entities: Entity[] = [];
+		for (const wall of this.walls) entities.push(wall);
+		return entities;
 	}
 }
 

@@ -23,6 +23,7 @@
 }
 
 .wall,
+.door,
 .outline-wall {
 	stroke: #fff;
 	fill: #000;
@@ -34,7 +35,8 @@
 	stroke-width: 1;
 }
 
-.wall.wireframe {
+.wall.wireframe,
+.door.wireframe {
 	fill: none;
 	stroke: #333;
 }

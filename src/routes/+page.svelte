@@ -9,7 +9,6 @@
 	import { SVG } from '@svgdotjs/svg.js';
 	import { Entity, Surface, ShapeVariables } from '$lib/shapes';
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 
 	let contents: HTMLDivElement;
@@ -54,5 +53,7 @@
 
 <div bind:this={contents} class="border-[1px] border-white w-[1000px] h-[800px]" />
 
-<p class="text-white">Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<p class="text-white">
+	Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation
+</p>
 <p class="text-white"><a href="{base}/config">config</a></p>

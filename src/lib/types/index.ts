@@ -7,6 +7,9 @@ export type Point = {
 	y: number;
 };
 
-export type BoundingBox = {};
-
 export type LineSegment = { p1: Point; p2: Point };
+
+export type DoorDescription = {
+	r1: number;
+	r2: number;
+};

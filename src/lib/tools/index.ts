@@ -25,36 +25,11 @@ export const transform = (
 };
 
 export const sortSurfaces = (surfaces: Surface[], fast = true) => {
-	// const debug = false;
-
 	const toSort = surfaces.concat([]);
-
-	// for (const surface of toSort) {
-	//   surface.strokeColor = '#ffffff';
-	//   if (fast) {
-	//     surface.fillColor = undefined;
-	//     surface.strokeColor = '#333333';
-	//   }
-	//   else surface.fillColor = '#000000';
-	// }
-
-	// for (const poly of this.polygons) {
-	//   if (fast) poly.strokeColor = '#333333';
-	//   else poly.strokeColor = '#ffffff';
-	// }
-
 	const toDraw = [];
-	let numComparisons = 0;
-
 	if (fast) {
 		return surfaces;
 	} else {
-		// if (debug) {
-		//   for (const surface of toSort) surface.shape.graphics.clear();
-		//   stage.update();
-		//   console.clear();
-		// }
-
 		// We need to loop through each z-slot and find the best shape to go there
 		// We will describe "best" as no other shapes are below it ~and~ as few undefined orders as possible
 
@@ -74,7 +49,6 @@ export const sortSurfaces = (surfaces: Surface[], fast = true) => {
 				for (const surface of toSort) {
 					if (primary === surface) continue;
 					const res = primary.isRenderedBefore(surface);
-					numComparisons++;
 					if (res === undefined) numUndefined++;
 					else if (res === false) {
 						hasNoBelow = false;
@@ -108,21 +82,19 @@ export const sortSurfaces = (surfaces: Surface[], fast = true) => {
 				// Remove the surface from the sort list
 				const idx = toSort.indexOf(bestOption.surface);
 				toSort.splice(idx, 1);
-
-				// if (debug) {
-				//   console.log(bestOption.surface.shape.name);
-				//   options[0].surface.draw();
-				//   stage.update();
-				// }
 			}
-
-			// if (debug) await new Promise(r => setTimeout(r, 100));
 		}
 	}
 
 	return toDraw;
 };
 
+/**
+ * Convert a rectangle to a series of points
+ * NOTE: Does not support rotation
+ * @param rect the rectangle
+ * @returns the points
+ */
 export const rectToPoints = (rect: Rect) => {
 	const x = new Number(rect.x()).valueOf();
 	const y = new Number(rect.y()).valueOf();

@@ -17,7 +17,7 @@ const parseFloorplan = (
 	const entities: Entity[] = [];
 	for (const element of elements) {
 		const id = element.id().replace(/_x5F/gm, '');
-		console.log(`Adding '${id}'`);
+		// console.log(`Adding '${id}'`);
 		if (id === 'outline') {
 			let points: PointArray;
 			if (element instanceof Path) {
@@ -52,10 +52,10 @@ const parseRooms = (src: G, rooms: layer.Rooms, walls: layer.Walls) => {
 	for (const element of elements) {
 		const id = element.id().replace(/_x5F/gm, '');
 		if (element instanceof G) {
-			console.log(`Adding room group '${id}'`);
+			// console.log(`Adding room group '${id}'`);
 			parseRooms(element, rooms, walls);
 		} else {
-			console.log(`Adding room '${id}'`);
+			// console.log(`Adding room '${id}'`);
 			let points: PointArray;
 			if (element instanceof Polygon || element instanceof Polyline) {
 				points = element.array();
@@ -118,7 +118,7 @@ export const parse = (stage: Svg, svgSize: Types.Point, inputSVG: string) => {
 	// Get the elements inside the SVG file. We have to do 'children()' twice because the top-level
 	// child is just the SVG tag itself
 	const elements = s.children()[0].children();
-	console.log(elements);
+	// console.log(elements);
 
 	const walls = new layer.Walls(stage);
 	const interior = new layer.Interior(stage);

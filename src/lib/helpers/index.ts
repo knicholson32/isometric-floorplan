@@ -101,8 +101,10 @@ export const do1DLineSegmentsOverlap = (
 	// let [A, B] = segment1.sort((a, b) => a - b);
 	// let [C, D] = segment2.sort((a, b) => a - b);
 
-	const [A, B] = segment1[0] < segment1[1] ? [segment1[0], segment1[1]] : [segment1[1], segment1[0]];
-	const [C, D] = segment2[0] < segment2[1] ? [segment2[0], segment2[1]] : [segment2[1], segment2[0]];
+	const [A, B] =
+		segment1[0] < segment1[1] ? [segment1[0], segment1[1]] : [segment1[1], segment1[0]];
+	const [C, D] =
+		segment2[0] < segment2[1] ? [segment2[0], segment2[1]] : [segment2[1], segment2[0]];
 
 	if (B < C || D < A) {
 		return false; // No overlap
@@ -230,4 +232,25 @@ export const roundPoint = (point: Types.Point, precision = 10000): Types.Point =
 		x: Math.round((point.x + Number.EPSILON) * precision) / precision, // + (Math.random() - 0.5) * 0.01,
 		y: Math.round((point.y + Number.EPSILON) * precision) / precision // + (Math.random() - 0.5) * 0.01
 	};
+};
+
+const RAD_TO_DEG = 180 / Math.PI;
+const DEG_TO_RAD = Math.PI / 180;
+
+/**
+ * convert radians to degrees
+ * @param rad radians
+ * @returns degrees
+ */
+export const radToDeg = (rad: number): number => {
+	return rad * RAD_TO_DEG;
+};
+
+/**
+ * Convert degrees to radians
+ * @param deg degrees
+ * @returns radians
+ */
+export const degToRad = (deg: number): number => {
+	return deg * DEG_TO_RAD;
 };

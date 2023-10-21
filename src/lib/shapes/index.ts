@@ -3,27 +3,29 @@ import * as helpers from '$lib/helpers';
 
 import type { Polygon, Container, ArrayXY, Path } from '@svgdotjs/svg.js';
 import { Matrix } from '@svgdotjs/svg.js';
+import type { Feature } from '$lib/features';
 import type { PointArray } from '@svgdotjs/svg.js';
 import type { Box } from '@svgdotjs/svg.js';
 import * as tools from '$lib/tools';
+import type { G } from '@svgdotjs/svg.js';
 
-export namespace ShapeVariables {
-	const initialWallHeight = 150;
+const WALL_HEIGHT_INITIAL = 100;
 
-	export let wallHeight = 150;
-	export const doorHeight = 10;
-
-	export const setScale = (scale: number) => {
-		wallHeight = initialWallHeight * scale;
-	};
-}
+export const ShapeVariables = {
+	initialWallHeight: WALL_HEIGHT_INITIAL,
+	wallHeight: WALL_HEIGHT_INITIAL,
+	doorHeight: 10,
+	setScale: (scale: number) => {
+		ShapeVariables.wallHeight = ShapeVariables.initialWallHeight * scale;
+	}
+};
 
 export class Entity {
 	_basisTranslate: Types.Point = { x: 0, y: 0 };
 	_basisScale: number = 1;
 	_runningTranslate: Types.Point = { x: 0, y: 0 };
 
-	container: Container;
+	container: Container | G;
 
 	constructor(container: Container) {
 		this.container = container;
@@ -46,6 +48,8 @@ export class Entity {
 	draw(_fastRender: boolean, _height: number) {}
 
 	reset() {}
+
+	remove() {}
 }
 
 export class PathWrapper extends Entity {
@@ -129,6 +133,10 @@ export class PolyWrapper extends Entity {
 		for (const p of this.initialPoints) this.points.push({ x: p.x, y: p.y });
 	}
 
+	remove() {
+		this.poly.remove();
+	}
+
 	matrixTransform(matrix: Types.Matrix2D) {
 		for (const p of this.points) {
 			const x = p.x;
@@ -157,16 +165,17 @@ export class Surface extends Entity {
 
 	id: string;
 	classes: string[] = [];
-	shape: Polygon;
+	shapes: Polygon[] = [];
 	container: Container;
-
-	removed = false;
+	initialContainer: Container;
 
 	static surfaceCounter = 0;
 	static surfaces: Surface[] = [];
 
 	index;
 	renderOrderCache: { [key: number]: boolean | undefined } = {};
+
+	feature: Feature | undefined = undefined;
 
 	constructor(
 		container: Container,
@@ -177,13 +186,13 @@ export class Surface extends Entity {
 	) {
 		super(container);
 		this.container = container;
+		this.initialContainer = container;
 		this.id = id;
 		this.index = Surface.surfaceCounter++;
-		cssClasses.push('surface');
 		for (const c of cssClasses) this.classes.push(c);
-		this.shape = this.container.polygon();
-		this.shape.remove();
-		this.createShape();
+		this.classes.push('surface');
+
+		this.allocateShapes(1);
 
 		if (
 			Math.abs(initialPoint1.x - initialPoint2.x) < 0.1 &&
@@ -209,12 +218,50 @@ export class Surface extends Entity {
 		Surface.surfaces.push(this);
 	}
 
-	createShape() {
-		this.shape = this.container.polygon();
-		this.shape.id(this.id);
-		for (const c of this.classes) this.shape.addClass(c);
-		this.removed = false;
+	addClasses(classes: string[]) {
+		this.classes = this.classes.concat(classes);
+		for (const shape of this.shapes) for (const c of classes) shape.addClass(c);
 	}
+
+	allocateShapes(numShapes: number) {
+		// If the number of shapes allocates is already correct, nothing to do
+		if (this.shapes.length === numShapes) return;
+		// If there is more than one shape, we'll make a group
+		if (numShapes > 1) {
+			// Check if we need to make a group. If there is one already made, nothing to do
+			if (this.container === this.initialContainer) this.container = this.initialContainer.group();
+		} else {
+			// If we had previously made a group, we need to remove it
+			if (this.container !== this.initialContainer) this.container.remove();
+			// The group is the initial container since we have only 1 shape
+			this.container = this.initialContainer;
+		}
+		// Remove all the existing shapes
+		for (const s of this.shapes) s.remove();
+		// Clear the shape array
+		this.shapes = [];
+		// Add shapes based on how many we want
+		for (let i = 0; i < numShapes; i++) {
+			// Create the new shape
+			const s = this.container.polygon();
+			// Set the ID
+			s.id(this.id + (numShapes > 1 ? i : ''));
+			// Add the classes
+			for (const c of this.classes) s.addClass(c);
+			// Save the shape
+			this.shapes.push(s);
+		}
+	}
+
+	attachFeature(feature: Feature) {
+		this.feature = feature;
+	}
+
+	// createShape() {
+	// 	this.shape = this.container.polygon();
+	// 	this.shape.id(this.id);
+	// 	for (const c of this.classes) this.shape.addClass(c);
+	// }
 
 	getAsSegment(): Types.LineSegment {
 		return { p1: this.initial.point1, p2: this.initial.point2 };
@@ -239,6 +286,10 @@ export class Surface extends Entity {
 		this.initial.point1.y *= scale;
 		this.initial.point2.x *= scale;
 		this.initial.point2.y *= scale;
+	}
+
+	remove() {
+		for (const s of this.shapes) s.remove();
 	}
 
 	eq = (x: number): number => x;
@@ -287,77 +338,56 @@ export class Surface extends Entity {
 		this.updateEq();
 	}
 
-	draw(fastRender: boolean, height: number) {
-		if (height <= 0.001) {
-			this.shape.remove();
-			this.removed = true;
-			return;
-		}
-
-		if (this.removed) this.createShape();
-
+	draw(fastRender: boolean, heightNormalized: number) {
 		this.renderOrderCache = {};
-		this.shape.clear();
+		for (const s of this.shapes) s.clear();
 
-		if (fastRender) this.shape.addClass('wireframe');
-		else this.shape.removeClass('wireframe');
-
-		const translated1X = this.point1.x + this._runningTranslate.x;
-		const translated2X = this.point2.x + this._runningTranslate.x;
-		const translated1Y = this.point1.y + this._runningTranslate.y;
-		const translated2Y = this.point2.y + this._runningTranslate.y;
-
-		if (!this.isDoor) {
-			const points: ArrayXY[] = [
-				[translated1X, translated1Y],
-				[translated1X, translated1Y + height * ShapeVariables.wallHeight],
-				[translated2X, translated2Y + height * ShapeVariables.wallHeight],
-				[translated2X, translated2Y],
-				[translated1X, translated1Y]
-			];
-			if (!fastRender) this.shape.front();
-			this.shape.plot(points);
+		if (fastRender) {
+			for (const s of this.shapes) s.addClass('wireframe');
 		} else {
-			const d1 = helpers.interpolate(
-				{ x: translated1X, y: translated1Y },
-				{ x: translated2X, y: translated2Y },
-				this.doorRatio[0].d1
-			);
-			const d2 = helpers.interpolate(
-				{ x: translated1X, y: translated1Y },
-				{ x: translated2X, y: translated2Y },
-				this.doorRatio[0].d2
-			);
-			if (Math.abs(d1.x - translated1X) < Math.abs(d2.x - translated1X)) {
-				const points: ArrayXY[] = [
-					[translated1X, translated1Y],
-					[translated2X, translated2Y],
-					[translated2X, translated2Y + height * ShapeVariables.wallHeight],
-					[d2.x, d2.y + height * ShapeVariables.wallHeight],
-					[d2.x, d2.y + height * ShapeVariables.doorHeight],
-					[d1.x, d1.y + height * ShapeVariables.doorHeight],
-					[d1.x, d1.y + height * ShapeVariables.wallHeight],
-					[translated1X, translated1Y + height * ShapeVariables.wallHeight],
-					[translated1X, translated1Y]
-				];
-				if (!fastRender) this.shape.front();
-				this.shape.plot(points);
-			} else {
-				const points: ArrayXY[] = [
-					[translated1X, translated1Y],
-					[translated2X, translated2Y],
-					[translated2X, translated2Y + height * ShapeVariables.wallHeight],
-					[d1.x, d1.y + height * ShapeVariables.wallHeight],
-					[d1.x, d1.y + height * ShapeVariables.doorHeight],
-					[d2.x, d2.y + height * ShapeVariables.doorHeight],
-					[d2.x, d2.y + height * ShapeVariables.wallHeight],
-					[translated1X, translated1Y + height * ShapeVariables.wallHeight],
-					[translated1X, translated1Y]
-				];
-				if (!fastRender) this.shape.front();
-				this.shape.plot(points);
-			}
+			for (const s of this.shapes) s.removeClass('wireframe');
+			if (this.shapes.length > 1) this.container.front();
+			else this.shapes[0].front();
 		}
+
+		const translated1: Types.Point = {
+			x: this.point1.x + this._runningTranslate.x,
+			y: this.point1.y + this._runningTranslate.y
+		};
+		const translated2: Types.Point = {
+			x: this.point2.x + this._runningTranslate.x,
+			y: this.point2.y + this._runningTranslate.y
+		};
+
+		let polygons: ArrayXY[][];
+
+		if (this.feature === undefined) {
+			// If we have no feature, this is a simple wall
+
+			// if (height <= 0.001) {
+			// 	this.shape.remove();
+			// 	this.removed = true;
+			// 	return;
+			// }
+
+			// Create a simple surface polygon
+			const points: ArrayXY[] = [
+				[translated1.x, translated1.y],
+				[translated1.x, translated1.y + heightNormalized * ShapeVariables.wallHeight],
+				[translated2.x, translated2.y + heightNormalized * ShapeVariables.wallHeight],
+				[translated2.x, translated2.y],
+				[translated1.x, translated1.y]
+			];
+			// Add the simple surface to the polygon array
+			polygons = [points];
+		} else {
+			// This is a feature. Let the feature come up with all the polygons
+			polygons = this.feature.render(translated1, translated2, heightNormalized);
+		}
+
+		// Draw all the polygons
+		for (let i = 0; i < this.shapes.length && i < polygons.length; i++)
+			this.shapes[i].plot(polygons[i]);
 	}
 
 	isRenderedBefore(b: Surface, debug = false): boolean | undefined {
@@ -456,19 +486,6 @@ export class Extrusion extends PolyWrapper {
 			}
 		}
 		return highestPointIndex;
-	}
-
-	_rotateList(startIndex: number, list: any[]) {
-		const newList = [];
-		for (let i = 0; i < list.length; i++) {
-			let idx = startIndex + i;
-			if (idx >= list.length) {
-				startIndex = -i;
-				idx = startIndex + i;
-			}
-			newList.push(list[idx]);
-		}
-		return newList;
 	}
 
 	draw(_fastRender: boolean, height: number) {

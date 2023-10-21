@@ -13,6 +13,8 @@ type OrbitData = {
 	version: string;
 };
 
+// TODO: Read out angles to canvas in the bottom corner
+
 const ORBIT_DATA_VERSION = 'v1';
 export default class Orbit {
 	orbitCallback: OrbitCallback;
