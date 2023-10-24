@@ -224,6 +224,8 @@ export class Surface extends Entity {
 	}
 
 	allocateShapes(numShapes: number) {
+		// TODO: This function can be optimized by adding or subtracting the right amount of
+		// shapes instead of deleting all and recreating them
 		// If the number of shapes allocates is already correct, nothing to do
 		if (this.shapes.length === numShapes) return;
 		// If there is more than one shape, we'll make a group

@@ -76,7 +76,7 @@ export class Door extends Feature {
 		point2: Types.Point,
 		heightNormalized: number,
 		description: Types.DoorDescription = this.doors[0]
-	): ArrayXY[] {
+	): { doorway: ArrayXY[]; doorJam?: ArrayXY[]; ref: number } {
 		// Using interpolation, calculate the start and end points of the door section. Using these synthesized
 		// points and the surface primary points, we can draw the door. d1 is closer to point1, d2 is farther.
 		const d1 = helpers.interpolate(
@@ -90,7 +90,34 @@ export class Door extends Feature {
 			description.r2
 		);
 
+		let doorJam: ArrayXY[] | undefined = undefined;
+
+		// Check if we have a linked door, and check if that other door has rendered. This way, only 1 door renders
+		// a door jam and we can rely on the other door having accurate points
+		if (this.linkedDoor !== undefined && this.linkedDoor.hasRendered()) {
+			// We will render the door jam that is actually visible (the one with a lower average y value)
+			// TODO: This render needs to be based on the slope of the door jam instead, to account for angles doors
+			const [l1, l2] = [this.linkedDoor.doorPoint1, this.linkedDoor.doorPoint2];
+			const drawD1 = (d1.y + l1.y) / 2 <= (d2.y + l2.y) / 2;
+			const d = drawD1 ? d1 : d2;
+			const linked = drawD1 ? this.linkedDoor.doorPoint1 : this.linkedDoor.doorPoint2;
+			// Draw the door jam
+			doorJam = [
+				[d.x, d.y],
+				[d.x, d.y + heightNormalized * ShapeVariables.wallHeight],
+				[linked.x, linked.y + heightNormalized * ShapeVariables.wallHeight],
+				[linked.x, linked.y],
+				[d.x, d.y]
+			];
+		}
+
+		// Assign this feature as having been rendered
+		this.doorPoint1 = d1;
+		this.doorPoint2 = d2;
+		this.hasRendered(true);
+
 		let core: ArrayXY[] = [];
+		const ref = description.r1 < description.r2 ? description.r1 : description.r2;
 
 		// We need to draw the door in the proper order. Check which point (d1 or d2) is closer to point1
 		if (Math.abs(d1.x - point1.x) < Math.abs(d2.x - point1.x)) {
@@ -111,7 +138,11 @@ export class Door extends Feature {
 			];
 		}
 
-		return core;
+		return {
+			doorway: core,
+			doorJam,
+			ref
+		};
 	}
 
 	/**
@@ -122,94 +153,56 @@ export class Door extends Feature {
 	 * @param heightNormalized the height od the floor plan as a number from 0 to 1
 	 * @returns an array of polygons to draw. During a fast render, only the first polygon will be drawn
 	 */
-	render(
-		point1: Types.Point,
-		point2: Types.Point,
-		heightNormalized: number,
-		coreOnly = false
-	): ArrayXY[][] {
+	render(point1: Types.Point, point2: Types.Point, heightNormalized: number): ArrayXY[][] {
 		// Create an empty polygon array
 		const polygons: ArrayXY[][] = [];
-
-		// Using interpolation, calculate the start and end points of the door section. Using these synthesized
-		// points and the surface primary points, we can draw the door. d1 is closer to point1, d2 is farther.
-		const d1 = helpers.interpolate(
-			{ x: point1.x, y: point1.y },
-			{ x: point2.x, y: point2.y },
-			this.doors[0].r1
-		);
-		const d2 = helpers.interpolate(
-			{ x: point1.x, y: point1.y },
-			{ x: point2.x, y: point2.y },
-			this.doors[0].r2
-		);
-
-		// Check if we have a linked door, and check if that other door has rendered. This way, only 1 door renders
-		// a door jam and we can rely on the other door having accurate points
-		if (this.linkedDoor !== undefined && this.linkedDoor.hasRendered()) {
-			// Update the number of shapes to 2
-			this.surface.allocateShapes(2);
-			// We will render the door jam that is actually visible (the one with a lower y value)
-			const d = d1.y > d2.y ? d2 : d1;
-			const linked =
-				this.linkedDoor.doorPoint1.y > this.linkedDoor.doorPoint2.y
-					? this.linkedDoor.doorPoint2
-					: this.linkedDoor.doorPoint1;
-			// Draw the door jam
-			polygons.push([
-				[d.x, d.y],
-				[d.x, d.y + heightNormalized * ShapeVariables.wallHeight],
-				[linked.x, linked.y + heightNormalized * ShapeVariables.wallHeight],
-				[linked.x, linked.y],
-				[d.x, d.y]
-			]);
-		} else {
-			// This is a single door, there is only 1 shape
-			this.surface.allocateShapes(1);
-		}
-
-		// Assign this feature as having been rendered
-		this.doorPoint1 = d1;
-		this.doorPoint2 = d2;
-		this.hasRendered(true);
-
-		const core: ArrayXY[] = this.core(point1, point2, heightNormalized);
+		// Get this door core data
+		const core = this.core(point1, point2, heightNormalized);
 		// Add the starting points that will be the same for every door on this surface
 		let points: ArrayXY[] = [
 			[point1.x, point1.y],
 			[point2.x, point2.y],
 			[point2.x, point2.y + heightNormalized * ShapeVariables.wallHeight]
 		];
-
+		// Set the number of shapes the surface should render
+		let shapes = 1;
 		// If another door just wants the core data, return it
-		if (coreOnly) {
-			polygons.push(core);
-		} else {
-			if (this.otherDoorsOnSurface.length === 0) {
-				points = points.concat(core);
-			} else {
-				const cores: ArrayXY[][] = [core];
-				for (const d of this.otherDoorsOnSurface) {
-					const rendered = d.render(point1, point2, heightNormalized, true);
-					if (rendered.length === 1) {
-						cores.push(rendered[0]);
-					} else {
-						this.surface.allocateShapes(3);
-						polygons.push(rendered[0]);
-						cores.push(rendered[1]);
-					}
-				}
-				// Add each of the other cores as points
-				for (const c of cores) points = points.concat(c);
+		if (this.otherDoorsOnSurface.length === 0) {
+			points = points.concat(core.doorway);
+			if (core.doorJam !== undefined) {
+				shapes++;
+				polygons.push(core.doorJam);
 			}
-			// Add the ending points
-			points = points.concat([
-				[point1.x, point1.y + heightNormalized * ShapeVariables.wallHeight],
-				[point1.x, point1.y]
-			]);
-			// Add the door to the polygon array
-			polygons.push(points);
+		} else {
+			// Set an array of all the cores for the doors on this surface
+			const cores = [core];
+			// Add the other cores to this array
+			for (const d of this.otherDoorsOnSurface)
+				cores.push(d.core(point1, point2, heightNormalized));
+			// Sort the cores based on their description reference, so they are drawn correctly
+			cores.sort((a, b) => b.ref - a.ref);
+			// We will go through the cores and add points / door jams
+			for (const c of cores) {
+				// Add the actual door-frame points
+				points = points.concat(c.doorway);
+				// Check if there is a door jam. If so, add it
+				if (c.doorJam !== undefined) {
+					// One additional shape for the surface
+					shapes++;
+					// Add it to the final shape list
+					polygons.push(c.doorJam);
+				}
+			}
 		}
+		// Add the ending points
+		points = points.concat([
+			[point1.x, point1.y + heightNormalized * ShapeVariables.wallHeight],
+			[point1.x, point1.y]
+		]);
+		// Add the door to the polygon array
+		polygons.push(points);
+		// Assign the number of shapes
+		this.surface.allocateShapes(shapes);
 		// Done
 		return polygons;
 	}
